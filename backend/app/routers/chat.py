@@ -67,6 +67,7 @@ def list_threads(
                 listing_image=(listing.images or [None])[0],
                 counterpart=seller_summary(session, other),
                 last_message=last.body,
+                last_from_me=last.sender_id == user.id,
                 last_at=last.created_at,
                 unread=sum(1 for m in messages if m.recipient_id == user.id and not m.read),
             )

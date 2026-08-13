@@ -123,7 +123,8 @@ export function Chat() {
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-slate-100">{thread.listing_title}</p>
                 <p className="truncate text-xs text-slate-500">
-                  {thread.counterpart.name.split(' ')[0]}: {thread.last_message}
+                  {thread.last_from_me ? 'You' : thread.counterpart.name.split(' ')[0]}:{' '}
+                  {thread.last_message}
                 </p>
               </div>
               {thread.unread > 0 && (

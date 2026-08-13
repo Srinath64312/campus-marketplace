@@ -149,6 +149,7 @@ export interface Thread {
   listing_image: string | null
   counterpart: SellerSummary
   last_message: string
+  last_from_me: boolean
   last_at: string
   unread: number
 }

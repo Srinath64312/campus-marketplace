@@ -366,6 +366,12 @@ REVIEW_COMMENTS = [
 ]
 
 
+def _stock_photo(tags: list[str], category: Category) -> str:
+    """Keyword-matched stock photo so demo listings look like the thing they describe."""
+    keywords = ",".join(tags[:2]) or category.value.replace("_", " ")
+    return f"https://loremflickr.com/800/600/{keywords.replace(' ', '-')}"
+
+
 def seed_if_empty() -> int:
     init_db()
     with Session(engine) as session:
@@ -413,7 +419,7 @@ def _seed(session: Session) -> int:
             condition=condition,
             mode=mode,
             status=ListingStatus.active,
-            images=[f"https://picsum.photos/seed/campus-{index + 1}/800/600"],
+            images=[_stock_photo(tags, category)],
             tags=tags,
             swap_wants=wants,
             swap_wants_category=wants_cat,

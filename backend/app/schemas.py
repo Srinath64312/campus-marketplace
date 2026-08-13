@@ -210,6 +210,7 @@ class ThreadOut(BaseModel):
     listing_image: str | None
     counterpart: SellerSummary
     last_message: str
+    last_from_me: bool
     last_at: datetime
     unread: int
 

@@ -73,6 +73,28 @@ DISCOUNT_KEYWORDS = {
 }
 
 MIN_COMPARABLES = 3
+# How alike two same-category listings must read before one prices the other.
+PEER_SIMILARITY = 0.15
+# A peer more than this many times cheaper/dearer is a different kind of thing.
+PEER_PRICE_RATIO = 3.0
+
+
+def _drop_outliers(pairs: list[tuple[float, float]]) -> list[tuple[float, float]]:
+    """Discard comps priced wildly away from the pack (a laptop next to a calculator)."""
+    median = statistics.median([price for price, _ in pairs])
+    kept = [pair for pair in pairs if median * 0.3 <= pair[0] <= median * 3]
+    return kept or pairs
+
+
+def _weighted_median(pairs: list[tuple[float, float]]) -> float:
+    ordered = sorted(pairs)
+    half = sum(weight for _, weight in ordered) / 2
+    running = 0.0
+    for price, weight in ordered:
+        running += weight
+        if running >= half:
+            return price
+    return ordered[-1][0]
 
 
 @dataclass
@@ -97,12 +119,22 @@ def _similarity(text_a: str, text_b: str) -> float:
     exact = len(a & b) / len(a | b)
     if exact:
         return exact
-    # fall back to fuzzy token pairing so "calulator" still finds "calculator"
+    # fall back to fuzzy token pairing so "calulator" still finds "calculator";
+    # only near-identical tokens count, otherwise unrelated items sneak in as comps
     best = 0.0
     for ta in a:
         for tb in b:
             best = max(best, fuzzy_ratio(ta, tb))
-    return best * 0.6
+    return best * 0.6 if best >= 0.82 else 0.0
+
+
+def _peer_overlap(listing_a: Listing, listing_b: Listing) -> float:
+    """Overlap of the naming words (title + tags) of two listings, ignoring prose."""
+    a = set(tokenize(f"{listing_a.title} {' '.join(listing_a.tags or [])}"))
+    b = set(tokenize(f"{listing_b.title} {' '.join(listing_b.tags or [])}"))
+    if not a or not b:
+        return 0.0
+    return len(a & b) / min(len(a), len(b))
 
 
 def _keyword_multiplier(text: str) -> tuple[float, list[str]]:
@@ -161,9 +193,10 @@ def suggest_price(
     age_factor = max(0.4, 0.98**age_months)
 
     if len(comps) >= MIN_COMPARABLES:
-        weights = [w for _, w in comps]
-        prices = [listing.price / CONDITION_FACTOR[listing.condition] for listing, _ in comps]
-        base = sum(p * w for p, w in zip(prices, weights, strict=True)) / sum(weights)
+        pairs = [(listing.price / CONDITION_FACTOR[listing.condition], weight) for listing, weight in comps]
+        pairs = _drop_outliers(pairs)
+        base = _weighted_median(pairs)
+        prices = [price for price, _ in pairs]
         spread = statistics.pstdev(prices) if len(prices) > 1 else base * 0.2
         confidence = min(0.94, 0.45 + 0.06 * len(comps))
         rationale.append(
@@ -190,7 +223,8 @@ def suggest_price(
     if age_months:
         rationale.append(f"{age_months} months of age trims another {int((1 - age_factor) * 100)}%")
 
-    band = max(spread * condition_factor * 0.75, suggested * 0.12)
+    # keep the band honest: wide enough to be useful, never collapsing to "free"
+    band = min(max(spread * condition_factor * 0.75, suggested * 0.12), suggested * 0.4)
     return PriceSuggestion(
         suggested=round(suggested, -1) if suggested > 100 else round(suggested, 0),
         low=max(0.0, round(suggested - band, -1) if suggested > 100 else round(suggested - band, 0)),
@@ -211,11 +245,20 @@ class DealScore:
 
 
 def deal_score(listing: Listing, market: list[Listing]) -> DealScore | None:
-    """Compare a listing with same-category, condition-normalised peers."""
+    """Compare a listing with textually similar, condition-normalised peers.
+
+    Category alone is too coarse — headphones are not laptops — so a badge only
+    appears when the same category holds items that actually resemble this one,
+    both in wording and in order of magnitude.
+    """
     peers = [
         other
         for other in market
-        if other.id != listing.id and other.category == listing.category and other.price > 0
+        if other.id != listing.id
+        and other.category == listing.category
+        and other.price > 0
+        and _peer_overlap(listing, other) >= PEER_SIMILARITY
+        and listing.price / PEER_PRICE_RATIO <= other.price <= listing.price * PEER_PRICE_RATIO
     ]
     if listing.price <= 0 or len(peers) < 2:
         return None

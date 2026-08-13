@@ -49,7 +49,10 @@ export function Pulse() {
           <h2 className="text-lg">New listings · last 14 days</h2>
           <div className="flex h-40 items-end gap-1.5">
             {stats.daily_new.map((day) => (
-              <div key={day.date} className="group flex flex-1 flex-col items-center justify-end gap-1">
+              <div
+                key={day.date}
+                className="group flex h-full flex-1 flex-col items-center justify-end gap-1"
+              >
                 <span className="text-[10px] text-slate-500 opacity-0 group-hover:opacity-100">
                   {day.count}
                 </span>
