@@ -48,6 +48,17 @@ cd backend  && poetry run ruff check . && poetry run ruff format --check . && po
 cd frontend && npm run build && npm run lint
 ```
 
+## Deploy
+
+`render.yaml` at the repo root describes both services (FastAPI API on a persistent disk, static
+React build). On Render: **New → Blueprint → pick this repo → Apply**. `JWT_SECRET` is generated
+automatically. After the API service is live, copy its URL into the web service's `VITE_API_BASE`
+and redeploy the frontend if Render suffixed the service name.
+
+Any other host works too: the backend is a plain ASGI app
+(`uvicorn app.main:app --host 0.0.0.0 --port $PORT`, deps in `backend/requirements.txt`) and the
+frontend is a static `npm run build` bundle.
+
 ## Configuration
 
 | Variable | Default | Notes |
