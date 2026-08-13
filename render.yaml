@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: campus-marketplace-api
+    env: python
+    buildCommand: poetry install
+    startCommand: poetry run uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: campus-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGINS
+        value: https://srinath64312.github.io
+      - key: SEED_ON_STARTUP
+        value: "true"
+
+databases:
+  - name: campus-db
+    plan: free
