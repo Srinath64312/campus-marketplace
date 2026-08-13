@@ -27,6 +27,9 @@ ruff = "^0.6.9"
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
+[tool.pytest.ini_options]
+pythonpath = ["."]
+
 [tool.ruff]
 line-length = 110
 target-version = "py310"
